@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include "constants.h"
 #include "http_response.h"
-#include "utils.h"
 
 // Send file to client socket
 void send_file(int client_socket, char *filename) {
