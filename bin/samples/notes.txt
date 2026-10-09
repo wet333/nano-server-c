@@ -1,0 +1,10 @@
+Nano Server C - plain text sample
+=================================
+
+The server doesn't know the .txt extension, so it sent this file with
+the fallback header:
+
+    Content-Type: text/plain; charset=UTF-8
+
+The same happens to .js, .jpg, .svg and files without an extension.
+To teach the server a new type, see "Add a MIME type" in Docs.md.

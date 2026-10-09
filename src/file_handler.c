@@ -38,10 +38,14 @@ void send_file(int client_socket, char *filename) {
     send(client_socket, response_buffer, total_bytes, 0);
 
     // Send file by chunks
-    stream_file_to_client(client_socket, filename);
+    int result = stream_file_to_client(client_socket, filename);
 
     fclose(file);
-    printf("File %s sent.\n", filename);
+    if (result == 0) {
+        printf("File %s sent.\n", filename);
+    } else {
+        printf("File %s was not fully sent.\n", filename);
+    }
 }
 
 long get_file_size(char *filename) {
@@ -76,14 +80,22 @@ MimeType get_mimetype_for_file(char *filename) {
     }
 }
 
-void stream_file_to_client(int client_socket, char *filename) {
+// Returns 0 when the whole file was sent, -1 if sending failed
+int stream_file_to_client(int client_socket, char *filename) {
     FILE *fp = fopen(filename, "rb");
     char file_buffer[BUFFER_SIZE];
     size_t bytes_read;
+    int result = 0;
 
     while ((bytes_read = fread(file_buffer, 1, BUFFER_SIZE, fp)) > 0) {
-        send(client_socket, file_buffer, bytes_read, 0);
+        // Fails when the client has closed the connection (EPIPE / ECONNRESET)
+        if (send(client_socket, file_buffer, bytes_read, 0) < 0) {
+            perror("Error sending file");
+            result = -1;
+            break;
+        }
     }
 
     fclose(fp);
+    return result;
 }

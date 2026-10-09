@@ -61,7 +61,7 @@ Solid arrows are function calls. Dotted arrows mean that the module includes `co
 
 | Source | Header | Responsibility |
 | --- | --- | --- |
-| [src/main.c](src/main.c) | none | Entry point. Starts the server, runs the accept loop, logs each request and calls `send_file()`. |
+| [src/main.c](src/main.c) | none | Entry point. Sets up signal handling, starts the server, runs the accept loop, logs each request, calls `send_file()` and shuts down cleanly on `Ctrl+C`. |
 | [src/server.c](src/server.c) | [include/server.h](include/server.h) | Creates the TCP socket, binds it to a port and starts listening. |
 | [src/http_request.c](src/http_request.c) | [include/http_request.h](include/http_request.h) | Reads the request from the socket and extracts the method and the path. |
 | [src/http_response.c](src/http_response.c) | [include/http_response.h](include/http_response.h) | Response data model, status phrases, MIME strings and serialization of the status line and headers. |
@@ -110,15 +110,18 @@ sequenceDiagram
 
 ### Main loop
 
-[src/main.c](src/main.c) runs this loop forever:
+[src/main.c](src/main.c) runs this loop until `Ctrl+C` (`SIGINT`) or `SIGTERM` sets `keep_running` to 0:
 
 ```mermaid
 flowchart TD
-    A(["start"]) --> B["init_server(8080)<br/>socket, bind, listen"]
-    B --> C["print 'Listening for connections...'"]
+    A(["start"]) --> S["setup_signals()<br/>SIGINT, SIGTERM, SIGPIPE"]
+    S --> B["init_server(8080)<br/>socket, setsockopt, bind, listen"]
+    B --> R{"keep_running?"}
+    R -- "yes" --> C["print 'Listening for connections...'"]
     C --> D{"accept()"}
-    D -- "returns -1" --> E["perror('Accept failed')"]
-    E --> C
+    D -- "-1, EINTR (Ctrl+C)" --> R
+    D -- "-1, other error" --> E["perror('Accept failed')"]
+    E --> R
     D -- "returns client fd" --> F{"read_request()"}
     F -- "n bytes" --> G["log method and path"]
     G --> H["send_file(fd, path)"]
@@ -128,8 +131,12 @@ flowchart TD
     K --> J
     F -- "-1, error" --> L["log 'Error reading request'"]
     L --> J
-    J --> C
+    J --> R
+    R -- "no" --> Z["close(server.socket_fd)"]
+    Z --> X(["exit 0"])
 ```
+
+See [Stopping the server](#stopping-the-server) for how `Ctrl+C` gets the loop to end.
 
 ### What the console shows
 
@@ -144,43 +151,59 @@ Request Path: styles.css
 Reading file: styles.css                 ← send_file() starts
 File styles.css sent.                    ← last chunk sent
 Listening for connections...             ← back to accept()
+^C
+Shutting down...                         ← Ctrl+C interrupted accept()
+Server socket closed.                    ← close() on the listening socket
 ```
 
 ### What the operating system sees
 
-`strace` lists every system call the server makes. This is the trace for one `curl http://localhost:8080/styles.css`, filtered to the interesting calls:
+`strace` lists every system call the server makes. This is the trace for one `curl http://localhost:8080/styles.css` followed by `Ctrl+C`, filtered to the interesting calls. Memory addresses will differ on your machine:
 
 ```bash
 cd bin
-strace -e trace=socket,bind,listen,accept,recvfrom,sendto,openat,close ./server
+strace -e trace=rt_sigaction,socket,setsockopt,bind,listen,accept,recvfrom,sendto,openat,close ./server
 ```
 
 ```text
+rt_sigaction(SIGINT, {sa_handler=0x64c05de1537d, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x74815be45330}, NULL, 8) = 0
+rt_sigaction(SIGTERM, {sa_handler=0x64c05de1537d, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x74815be45330}, NULL, 8) = 0
+rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x74815be45330}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
 socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = 3
+setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
 bind(3, {sa_family=AF_INET, sin_port=htons(8080), sin_addr=inet_addr("0.0.0.0")}, 16) = 0
 listen(3, 3)                            = 0
-accept(3, {sa_family=AF_INET, sin_port=htons(46542), sin_addr=inet_addr("127.0.0.1")}, [16]) = 4
+accept(3, {sa_family=AF_INET, sin_port=htons(52270), sin_addr=inet_addr("127.0.0.1")}, [16]) = 4
 recvfrom(4, "GET /styles.css HTTP/1.1\r\nHost: "..., 4095, 0, NULL, NULL) = 87
 openat(AT_FDCWD, "styles.css", O_RDONLY) = 5
 openat(AT_FDCWD, "styles.css", O_RDONLY) = 6
 close(6)                                = 0
-sendto(4, "HTTP/1.1 200 OK\r\nContent-Type: t"..., 131, 0, NULL, 0) = 131
+sendto(4, "HTTP/1.1 200 OK\r\nContent-Type: t"..., 149, 0, NULL, 0) = 149
 openat(AT_FDCWD, "styles.css", O_RDONLY) = 6
-sendto(4, "body {\n    font-family: 'Times N"..., 2460, 0, NULL, 0) = 2460
+sendto(4, "/* ============================="..., 4096, 0, NULL, 0) = 4096
+sendto(4, "ink:focus {\n    transform: none;"..., 4096, 0, NULL, 0) = 4096
+sendto(4, "\n    color: var(--muted);\n    fo"..., 4096, 0, NULL, 0) = 4096
+sendto(4, "r: var(--link);\n}\n\n.button:disab"..., 4096, 0, NULL, 0) = 4096
+sendto(4, "toc);\n    color: var(--accent);\n"..., 2621, 0, NULL, 0) = 2621
 close(6)                                = 0
 close(5)                                = 0
 close(4)                                = 0
-accept(3, ...
+accept(3, 0x7ffeb4b3e578, [16])         = ? ERESTARTSYS (To be restarted if SA_RESTART is set)
+--- SIGINT {si_signo=SIGINT, si_code=SI_USER, si_pid=3180341, si_uid=1000} ---
+close(3)                                = 0
++++ exited with 0 +++
 ```
 
 How to read it:
 
+- The three `rt_sigaction` calls come from `setup_signals()`. `SIGINT` and `SIGTERM` get a handler **without** `SA_RESTART`, and `SIGPIPE` is ignored (`SIG_IGN`). See [Stopping the server](#stopping-the-server).
 - **fd 3** is the listening socket and **fd 4** is the connection with this client. See [section 3](#3-socket-setup-serverc).
+- `setsockopt(..., SO_REUSEADDR, ...)` lets the server bind the port again right after a restart.
 - `recv()` and `send()` show up as `recvfrom` and `sendto` because glibc implements them with those system calls.
 - `recvfrom` asks for at most 4095 bytes: `BUFFER_SIZE - 1`, which leaves room for the `'\0'` terminator.
 - The file is opened **three times**: once by `send_file()` to check that it exists, once by `get_file_size()` and once by `stream_file_to_client()`. See [section 6](#6-file-serving-file_handlerc).
-- The headers and the body are sent with separate `sendto` calls. The headers take 131 bytes instead of the intended 148 because of a serialization bug. See [section 5](#serialization-layout-and-the-header-bug).
-- The body is sent in a single call because `styles.css` (2,460 bytes) fits in one 4 KB chunk.
+- The headers go out in one 149-byte `sendto`. The body follows in 4 KB chunks: 4 × 4,096 + 2,621 = 19,005 bytes, the size of `styles.css`.
+- On `Ctrl+C`, the blocked `accept()` is interrupted. `ERESTARTSYS` is the kernel's internal code. Because the handler has no `SA_RESTART`, the call returns `-1` with `errno == EINTR` to the program, the loop ends, `close(3)` releases the listening socket and the process exits with 0.
 
 ---
 
@@ -200,10 +223,11 @@ typedef struct {
 
 | Step | Call | What it does |
 | --- | --- | --- |
-| 1 | `socket(AF_INET, SOCK_STREAM, 0)` | Creates an IPv4 TCP socket. |
-| 2 | Fills `sockaddr_in` | `INADDR_ANY` means all network interfaces (`0.0.0.0`). `htons(port)` converts the port to network byte order. |
-| 3 | `bind()` | Attaches the socket to the port. If the port is taken, the server prints the error and exits. |
-| 4 | `listen(fd, 3)` | Marks the socket as passive. The kernel queues up to 3 connections while the server is busy with another client. |
+| 1 | `socket(AF_INET, SOCK_STREAM, 0)` | Creates an IPv4 TCP socket. Returns `-1` on failure. |
+| 2 | `setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, ...)` | Allows binding the port while connections from a previous run are still in `TIME_WAIT`. See [Stopping the server](#stopping-the-server). |
+| 3 | Fills `sockaddr_in` | `INADDR_ANY` means all network interfaces (`0.0.0.0`). `htons(port)` converts the port to network byte order. |
+| 4 | `bind()` | Attaches the socket to the port. If another process is listening on it, the server prints the error and exits. |
+| 5 | `listen(fd, 3)` | Marks the socket as passive. The kernel queues up to 3 connections while the server is busy with another client. |
 
 If any step fails, the function calls `perror()` and `exit(EXIT_FAILURE)`.
 
@@ -214,7 +238,7 @@ A TCP server uses two kinds of sockets. The listening socket only accepts new co
 ```text
                          ┌───────────────────────────────────────┐
   client ── connect() ──▶│ fd 3: listening socket                │  created once by init_server()
-                         │ bound to 0.0.0.0:8080, never closed   │
+                         │ bound to 0.0.0.0:8080                 │  closed when the server stops
                          └───────────────────┬───────────────────┘
                                              │ accept()
                                              ▼
@@ -224,11 +248,52 @@ A TCP server uses two kinds of sockets. The listening socket only accepts new co
                          └───────────────────────────────────────┘
 ```
 
+### Stopping the server
+
+When you press `Ctrl+C`, the terminal sends `SIGINT` to the server. By default that signal kills the process on the spot: no code of the program runs, and the kernel closes its file descriptors. The server now handles the signal so that it can stop in an orderly way:
+
+```mermaid
+sequenceDiagram
+    participant U as You
+    participant K as Kernel
+    participant M as main.c
+
+    M->>K: accept() blocks, waiting for a client
+    U->>K: Ctrl+C
+    K->>M: SIGINT runs handle_stop_signal()
+    M->>M: keep_running = 0
+    K-->>M: accept() returns -1, errno = EINTR
+    M->>M: while (keep_running) is false, the loop ends
+    M->>K: close(server.socket_fd)
+    M->>M: print 'Server socket closed.', return 0
+```
+
+`setup_signals()` in [src/main.c](src/main.c) does three things:
+
+1. **Installs `handle_stop_signal()` for `SIGINT` and `SIGTERM`.** The handler only sets `keep_running = 0`. A signal handler can interrupt the program at any instruction, so it should do as little as possible. Writing a `volatile sig_atomic_t` is the standard safe choice.
+2. **Leaves out `SA_RESTART`.** With `SA_RESTART`, the kernel would restart the interrupted `accept()` automatically and the loop would never see the flag. Without it, `accept()` returns `-1` with `errno == EINTR`. That's why the code uses `sigaction()` here: on Linux, `signal()` sets `SA_RESTART`.
+3. **Ignores `SIGPIPE`.** See [Clients that disconnect early](#clients-that-disconnect-early).
+
+`SIGTERM`, which `kill <pid>` sends by default, takes the same path. If the signal arrives while a request is being served, the request finishes first, and then the loop checks the flag.
+
+**Why the port could stay busy after stopping.** Even when the process dies from the signal, the kernel closes the listening socket. What stays behind are the **client connections**. TCP keeps every connection that a side closed first in the `TIME_WAIT` state for about 60 seconds, so that late packets from that connection can't be mistaken for a new one. Nano Server C always closes first (`Connection: close`), so after serving requests, the kernel holds several `TIME_WAIT` entries on port 8080:
+
+```text
+$ ss -tan | grep -E '127.0.0.1:8080 +127'
+TIME-WAIT 0       0       127.0.0.1:8080       127.0.0.1:57068
+TIME-WAIT 0       0       127.0.0.1:8080       127.0.0.1:57064
+```
+
+The local side is the server's port 8080, and the peer is the port the client used for that connection.
+
+By default, `bind()` refuses a port that appears in any of those entries and fails with `Address already in use`. `SO_REUSEADDR` tells the kernel to allow the bind anyway. It still refuses if another process is actively **listening** on the port, so two servers can't run on the same port by accident.
+
+So the two changes solve different problems. `close()` on shutdown is good practice and makes the exit explicit. `SO_REUSEADDR` is what makes an immediate restart work.
+
 ### Notes on the socket code
 
-- **`SO_REUSEADDR` is not set.** The variable `opt` is declared but `setsockopt()` is never called. The server closes every connection itself, so the kernel keeps the port in the `TIME_WAIT` state for about a minute. A restart during that time fails with `Address already in use`. See [the fix](#reuse-the-port-after-a-restart).
-- **The error check for `socket()` compares with `0`** ([src/server.c:14](src/server.c#L14)), but `socket()` returns `-1` on failure. A failure there goes unnoticed, and the error appears one step later in `bind()`.
 - **`main.c` passes `server.address` to `accept()`**, so the client's address overwrites the server's address in that struct. This does no harm right now, because the struct isn't used after `bind()`.
+- **A small race remains.** If `Ctrl+C` arrives just after the loop has checked `keep_running` but before `accept()` starts blocking, `accept()` isn't interrupted, and the server stops only after the next request. A second `Ctrl+C` stops it right away. Closing this gap completely needs `pselect()` or a self-pipe, which is more than this server needs.
 
 ---
 
@@ -272,7 +337,7 @@ typedef struct {
 Take this request, as curl sends it:
 
 ```text
-GET /pages/tutorial.html HTTP/1.1\r\n
+GET /pages/status.html HTTP/1.1\r\n
 Host: localhost:8080\r\n
 Accept: */*\r\n
 \r\n
@@ -284,13 +349,13 @@ Accept: */*\r\n
 4. **Parse the path.** `parse_path()` works with two pointers:
 
    ```text
-     G E T   / p a g e s / t u t o r i a l . h t m l   H T T P / 1 . 1
-           ▲   ▲                                     ▲
-           │   │                                     └─ path_end   = strchr(path_start, ' ')
+     G E T   / p a g e s / s t a t u s . h t m l   H T T P / 1 . 1
+           ▲   ▲                                 ▲
+           │   │                                 └─ path_end   = strchr(path_start, ' ')
            │   └─ path_start = first space + 2  (skips the space and the '/')
            └─ first space = strchr(request_line, ' ')
 
-     path = "pages/tutorial.html"   (path_end - path_start = 19 bytes)
+     path = "pages/status.html"   (path_end - path_start = 17 bytes)
    ```
 
 5. **Store the path.** The result is copied to the heap and saved in `req->path`.
@@ -302,15 +367,15 @@ These results come from calling `parse_method()` and `parse_path()` directly:
 | Request line | `method` | `path` | Notes |
 | --- | --- | --- | --- |
 | `GET /index.html HTTP/1.1` | `GET` | `"index.html"` | |
-| `GET /pages/tutorial.html HTTP/1.1` | `GET` | `"pages/tutorial.html"` | |
+| `GET /pages/status.html HTTP/1.1` | `GET` | `"pages/status.html"` | |
 | `POST /index.html HTTP/1.1` | `POST` | `"index.html"` | Served like a GET. |
-| `DELETE /index.html HTTP/1.1` | `UNKNOWN` | `"index.html"` | ⚠️ Bug, explained below. |
+| `DELETE /index.html HTTP/1.1` | `DELETE` | `"index.html"` | Served like a GET. |
 | `GET / HTTP/1.1` | `GET` | `""` | An empty path. `fopen("")` fails, so the response is 404. |
 | `GET /index.html?v=1 HTTP/1.1` | `GET` | `"index.html?v=1"` | The query string becomes part of the file name. |
 | `GET //etc/passwd HTTP/1.1` | `GET` | `"/etc/passwd"` | ⚠️ An absolute path. See [Known issues](#12-known-issues). |
 | `HELLO` | `UNKNOWN` | `NULL` | No space, so `parse_path()` returns `-1`. |
 
-**Why `DELETE` is never recognized.** [src/http_request.c:94](src/http_request.c#L94) calls `strncmp(request_line, "DELETE ", 8)`. `"DELETE "` is only 7 characters long, so the 8th character compared is the `'\0'` at the end of the literal. In a real request that position holds the `/` of the path, so the comparison never matches. The fix is to compare 7 characters.
+**Comparing methods with `strncmp()`.** Each call compares exactly as many characters as the literal has, trailing space included: `strncmp(request_line, "DELETE ", 7)`. One character too many would compare the literal's final `'\0'` with the `/` of the path, which never matches. That mistake used to make `DELETE` show up as `UNKNOWN` ([src/http_request.c:94](src/http_request.c#L94)).
 
 **Hidden assumptions in `parse_path()`:**
 
@@ -393,7 +458,7 @@ int length = get_response_size(&res, buffer, sizeof(buffer));
 send(client_socket, buffer, length, 0);
 ```
 
-The response this is meant to produce (every line ends in `\r\n`):
+The bytes it produces (every line ends in `\r\n`):
 
 ```text
 HTTP/1.1 200 OK
@@ -405,8 +470,6 @@ Cache-Control: no-store
 
 Hello from Nano Server C
 ```
-
-Because of the bug described [below](#serialization-layout-and-the-header-bug), the current code produces `Server:Cache-Control: no-store` instead of the two separate lines.
 
 ### Two ways to send a body
 
@@ -423,33 +486,25 @@ Because of the bug described [below](#serialization-layout-and-the-header-bug), 
  Text only (length comes from strlen)          Works for binary files
 ```
 
-### Serialization layout and the header bug
+### Serialization layout
 
-`get_response_size()` writes the response with several `snprintf()` calls and keeps a running total in `response_size`:
+`get_response_size()` writes the response with several `snprintf()` calls into the same buffer. `response_size` is the running total: each call writes at `buffer + response_size`, and its return value (the number of characters written) is **added** to the total.
 
-1. Status line: `snprintf()` returns 17, so `response_size = 17`.
-2. Standard headers: written at `buffer + 17`. `snprintf()` returns 104. The code **assigns** the result (`response_size = 104`) instead of **adding** it (`response_size += 104`, which would give 121). See [src/http_response.c:59](src/http_response.c#L59).
-3. Custom headers are written at `buffer + 104`. That position is 7 bytes into the `Server` line, so they overwrite it.
-
-The byte layout of the headers for `GET /index.html`:
+The byte layout of the headers for a 777-byte HTML file:
 
 ```text
-offset  intended (148 bytes)                         actual (131 bytes)
-──────  ───────────────────────────────────────────  ────────────────────────────────────────────
-     0  HTTP/1.1 200 OK\r\n                          HTTP/1.1 200 OK\r\n
-    17  Content-Type: text/html; charset=UTF-8\r\n   Content-Type: text/html; charset=UTF-8\r\n
-    57  Content-Length: 777\r\n                      Content-Length: 777\r\n
-    78  Connection: close\r\n                        Connection: close\r\n
-    97  Server: AWetServerV1.0\r\n                   Server:
-   104                                               Server-Token: 987654321\r\n   ← written at 104
-   121  Server-Token: 987654321\r\n
-   129                                               \r\n
-   131                                               (end)
-   146  \r\n
-   148  (end)
+offset  bytes written                                 response_size after the call
+──────  ────────────────────────────────────────────  ────────────────────────────
+     0  HTTP/1.1 200 OK\r\n                           17
+    17  Content-Type: text/html; charset=UTF-8\r\n    ┐
+    57  Content-Length: 777\r\n                       │ one snprintf() call,
+    78  Connection: close\r\n                         │ 104 bytes
+    97  Server: AWetServerV1.0\r\n                    ┘ 121
+   121  Server-Token: 987654321\r\n                   146
+   146  \r\n                                          148
 ```
 
-The 404 response is affected too. It has no custom headers, so the empty line that ends the headers lands exactly where the `Server` line starts, and that header disappears. The fix is a single character: change `=` to `+=` on line 59.
+**Why `+=` matters.** Before the fix, line 59 ([src/http_response.c:59](src/http_response.c#L59)) **assigned** the result of the second call (`response_size = 104`) instead of adding it (`17 + 104 = 121`). The next write then started at offset 104, which is 7 bytes into the `Server` line, and clients received `Server:Server-Token: 987654321` in a 131-byte head. In the 404 response, the closing `\r\n` landed exactly where the `Server` line starts, so that header vanished.
 
 ---
 
@@ -467,9 +522,11 @@ flowchart TD
     E --> F["get_file_size()"]
     F --> G["add the Server-Token header"]
     G --> H["get_response_size()<br/>send() headers"]
-    H --> I["stream_file_to_client()"]
-    I --> J["fclose()"]
+    H --> I{"stream_file_to_client()"}
+    I -- "0" --> J["fclose()<br/>log 'File ... sent.'"]
+    I -- "-1, send() failed" --> K["fclose()<br/>log 'File ... was not fully sent.'"]
     J --> Z
+    K --> Z
 ```
 
 | Function | Purpose |
@@ -477,7 +534,7 @@ flowchart TD
 | `void send_file(int client_socket, char *filename)` | Sends a whole HTTP response for a file, or a 404 if it can't be opened. |
 | `long get_file_size(char *filename)` | Opens the file, seeks to the end and returns the position (`ftell()`), or `-1`. |
 | `MimeType get_mimetype_for_file(char *filename)` | Picks the MIME type from the extension. |
-| `void stream_file_to_client(int client_socket, char *filename)` | Sends the file contents in `BUFFER_SIZE` chunks. |
+| `int stream_file_to_client(int client_socket, char *filename)` | Sends the file contents in `BUFFER_SIZE` chunks. Returns `0` when the whole file was sent, or `-1` as soon as a `send()` fails. |
 
 ### From URL path to file
 
@@ -486,9 +543,9 @@ Paths are resolved against the server's **current working directory**, so the re
 | Server started in | Request | File opened | Result |
 | --- | --- | --- | --- |
 | `bin/` | `GET /index.html` | `bin/index.html` | 200 |
-| `bin/` | `GET /pages/tutorial.html` | `bin/pages/tutorial.html` | 200 |
+| `bin/` | `GET /pages/status.html` | `bin/pages/status.html` | 200 |
 | project root | `GET /index.html` | `./index.html` | 404 |
-| project root | `GET /bin/index.html` | `bin/index.html` | 200, but the page's `/pages/tutorial.html` link returns 404 |
+| project root | `GET /bin/index.html` | `bin/index.html` | 200. The demo site uses relative links, so its pages work from here too. |
 
 ### MIME detection
 
@@ -497,7 +554,7 @@ Paths are resolved against the server's **current working directory**, so the re
 | File name | Text after the last dot | `Content-Type` |
 | --- | --- | --- |
 | `index.html` | `.html` | `text/html; charset=UTF-8` |
-| `pages/tutorial.html` | `.html` | `text/html; charset=UTF-8` |
+| `pages/status.html` | `.html` | `text/html; charset=UTF-8` |
 | `data.json` | `.json` | `application/json` |
 | `archive.tar.gz` | `.gz` | `text/plain; charset=UTF-8` |
 | `PHOTO.PNG` | `.PNG` | `text/plain; charset=UTF-8` (uppercase doesn't match) |
@@ -511,15 +568,50 @@ Paths are resolved against the server's **current working directory**, so the re
  ┌──────────────┐   fread()   ┌──────────────┐    send()    ┌──────────────┐
  │  the file    │ ──────────▶ │ ≤ 4096 bytes │ ───────────▶ │    fd 4      │
  └──────────────┘             └──────────────┘              └──────────────┘
-                     repeat until fread() returns 0
+        repeat until fread() returns 0, or stop when send() fails
 ```
 
 Memory use stays at 4 KB whatever the file size. For example, `bin/image_0001.png` is 2,056,264 bytes, so it is sent as 502 full chunks plus a final chunk of 72 bytes: 503 `send()` calls.
 
+### Clients that disconnect early
+
+A browser can close the connection before the file is fully sent: the user reloads the page, closes the tab, or a script cancels a download. The server only finds out on its next `send()` to that socket:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant K as Kernel
+    participant S as Server
+
+    S->>C: send() chunk 1, 2, 3 ...
+    C->>K: closes the connection mid-download
+    K-->>S: the socket is now broken
+    S->>K: send() next chunk
+    Note over K,S: Before: the kernel raises SIGPIPE and its default action kills the process (exit code 141)
+    K-->>S: Now: SIGPIPE is ignored, so send() returns -1 with errno EPIPE or ECONNRESET
+    S->>S: stop streaming, log the error, close(fd), accept() the next client
+```
+
+Two changes make this safe:
+
+1. `setup_signals()` in [src/main.c](src/main.c) calls `signal(SIGPIPE, SIG_IGN)`. A write to a broken connection now fails with an error code instead of killing the process.
+2. `stream_file_to_client()` checks the result of every `send()`. On the first failure it stops reading the file, instead of trying to send the rest of a 2 MB file to a dead socket, and returns `-1`.
+
+The console then shows:
+
+```text
+Request Method: GET
+Request Path: big.bin
+Reading file: big.bin
+Error sending file: Broken pipe
+File big.bin was not fully sent.
+Listening for connections...
+```
+
 ### Notes on the file handling code
 
 - **Each file is opened three times:** in `send_file()` (only to check that it exists), in `get_file_size()` and in `stream_file_to_client()`. `stream_file_to_client()` doesn't check whether its `fopen()` succeeded, so the server crashes if the file is deleted between the first and the third open.
-- **`send()`'s return value is never checked.** If the client disconnects in the middle of a download, the next `send()` raises `SIGPIPE`. By default that signal **kills the server**: the process ends with exit code 141 (128 + 13, the number of `SIGPIPE`). See [the fix](#survive-clients-that-disconnect-early).
+- **Partial sends aren't retried.** `send()` on a blocking socket normally sends the whole chunk, but it may send fewer bytes if a signal interrupts it. The code treats any non-negative result as a full chunk.
 - **Directories.** On Linux, `fopen()` succeeds on a directory, `ftell()` reports `LONG_MAX` and `fread()` fails. The client gets `200 OK` with `Content-Length: 9223372036854775807` and an empty body.
 - **Every 200 response includes `Server-Token: 987654321`.** It is a test header with no real purpose.
 
@@ -557,14 +649,15 @@ Memory use stays at 4 KB whatever the file size. For example, `bin/image_0001.pn
 
 | Situation | What the code does | What happens |
 | --- | --- | --- |
-| The port is already in use | `bind()` fails, then `perror()` and `exit()` | The server stops with `Error while trying to bind socket: Address already in use`. |
+| Another process is listening on the port | `bind()` fails, then `perror()` and `exit()` | The server stops with `Error while trying to bind socket: Address already in use`. Connections left in `TIME_WAIT` by a previous run no longer cause this. |
 | `accept()` fails | `perror("Accept failed")` and `continue` | The loop goes on. |
 | A client connects and closes without sending anything | `recv()` returns 0 | The log shows `Client closed connection`. |
 | `recv()` fails | `read_request()` returns -1 | The log shows `Error reading request`. |
 | The request line has no space | `path` is `NULL`, and `fopen(NULL)` fails | 404, and the log shows `Reading file: (null)`. |
 | The file doesn't exist or can't be read | `fopen()` fails | 404 with a JSON body. A missing permission is also reported as 404, not 403. |
 | The path is a directory | `fopen()` succeeds, the size is wrong | 200 with an invalid `Content-Length` and no body. |
-| The client disconnects during a download | `send()` raises `SIGPIPE` | **The server process is killed.** |
+| The client disconnects during a download | `SIGPIPE` is ignored, so `send()` returns -1 and streaming stops | The log shows `Error sending file: Broken pipe` and the server serves the next client. |
+| `Ctrl+C` or `SIGTERM` | The handler sets `keep_running = 0` and `accept()` returns `EINTR` | The loop ends, the listening socket is closed and the process exits with 0. |
 
 ---
 
@@ -593,7 +686,7 @@ flowchart LR
 ### Things to watch out for
 
 - **Changing a header doesn't trigger a rebuild.** The pattern rule only depends on the `.c` file. After you edit `constants.h`, plain `make` reports nothing to do. Use `rm -rf build && make` instead, or apply the [suggested fix](#track-header-dependencies-in-the-makefile).
-- **`make clean` deletes the sample site**, because `index.html`, `styles.css`, the image and `pages/` live in `bin/` next to the executable. Restore them with `git checkout -- bin`.
+- **`make clean` deletes the sample site**, because `index.html`, `styles.css`, `pages/`, `images/`, `samples/` and the 2 MB image live in `bin/` next to the executable. Restore them with `git checkout -- bin`.
 - **`bin/server` is tracked by git**, so every rebuild shows up as a modified file in `git status`.
 - **`compile_flags.txt`** contains `-Iinclude` so that clangd and other editor tools can find the headers.
 
@@ -608,7 +701,7 @@ flowchart LR
 | `curl -i http://localhost:8080/index.html` | The status line, the headers and the body. |
 | `curl -s -D - -o /dev/null http://localhost:8080/index.html` | Only the headers. |
 | `curl -i http://localhost:8080/missing.html` | The 404 response and its JSON body. |
-| `curl -X DELETE http://localhost:8080/index.html` | A file is served anyway. The console logs `Request Method: UNKNOWN`. |
+| `curl -X DELETE http://localhost:8080/index.html` | A file is served anyway. The console logs `Request Method: DELETE`. |
 | `curl --path-as-is http://localhost:8080//etc/hostname` | Shows that absolute paths are not blocked. |
 
 ### Raw requests with netcat
@@ -714,8 +807,9 @@ Give `send_file()` a flag and skip the streaming step when it is false:
 void send_file(int client_socket, char *filename, int include_body);
 
     // in send_file(), replace the streaming call with:
+    int result = 0;
     if (include_body) {
-        stream_file_to_client(client_socket, filename);
+        result = stream_file_to_client(client_socket, filename);
     }
 
 // src/main.c
@@ -749,30 +843,6 @@ static int is_safe_path(const char *path) {
 
 Also add `case HTTP_FORBIDDEN: return "Forbidden";` to `get_status_phrase()`, or the status line will say `403 Unknown`.
 
-### Survive clients that disconnect early
-
-Ignore `SIGPIPE` at startup. A failed `send()` then returns `-1` instead of killing the process:
-
-```c
-// src/main.c
-#include <signal.h>
-
-int main(int argc, char *argv[]) {
-    signal(SIGPIPE, SIG_IGN);
-    HttpServer server = init_server(8080);
-    ...
-```
-
-On Linux you can instead pass `MSG_NOSIGNAL` as the last argument of each `send()`.
-
-### Reuse the port after a restart
-
-In `init_server()`, before `bind()`. The variable `opt` already exists:
-
-```c
-setsockopt(server.socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-```
-
 ### Track header dependencies in the Makefile
 
 Ask gcc to write a `.d` dependency file next to each object, and include those files. The `-include` line must be at the **end** of the Makefile. If it comes before `all`, the first rule in the `.d` files becomes the default target.
@@ -802,17 +872,12 @@ The server is iterative: one slow client blocks everyone else. The usual next st
 
 | Issue | Location | Effect | Fix |
 | --- | --- | --- | --- |
-| Header length assigned instead of added | [src/http_response.c:59](src/http_response.c#L59) | The `Server` header is overwritten. | `=` → `+=` |
-| `DELETE` compared with the wrong length | [src/http_request.c:94](src/http_request.c#L94) | `DELETE` is logged as `UNKNOWN`. | Compare 7 characters. |
-| `SIGPIPE` not handled | [src/file_handler.c:85](src/file_handler.c#L85) | A client that disconnects during a download kills the server. | [Ignore `SIGPIPE`](#survive-clients-that-disconnect-early). |
-| Paths not sanitized | [src/main.c:71](src/main.c#L71) | Any file the process can read is reachable with `..` or a leading `//`. | [Block unsafe paths](#block-unsafe-paths). |
-| `HEAD` responses include the body | [src/main.c:71](src/main.c#L71) | Breaks the HTTP rules for `HEAD`. | [Skip the body](#answer-head-without-a-body). |
-| No `SO_REUSEADDR` | [src/server.c:11](src/server.c#L11) | A quick restart fails with `Address already in use`. | [Set the option](#reuse-the-port-after-a-restart). |
-| `socket()` checked against `0` | [src/server.c:14](src/server.c#L14) | Socket creation errors aren't detected. | Compare with `< 0`. |
+| Paths not sanitized | [src/main.c:99](src/main.c#L99) | Any file the process can read is reachable with `..` or a leading `//`. | [Block unsafe paths](#block-unsafe-paths). |
+| `HEAD` responses include the body | [src/main.c:99](src/main.c#L99) | Breaks the HTTP rules for `HEAD`. | [Skip the body](#answer-head-without-a-body). |
 | No phrases for 401 and 403 | [src/http_response.c:5](src/http_response.c#L5) | The status line would say `Unknown`. | Add the two `case`s. |
-| `NULL` path passed to `send_file()` | [src/main.c:71](src/main.c#L71) | Only works because `fopen(NULL)` fails. | Check `request.path` before the call. |
+| `NULL` path passed to `send_file()` | [src/main.c:99](src/main.c#L99) | Only works because `fopen(NULL)` fails. | Check `request.path` before the call. |
 | Unchecked skip in `parse_path()` | [src/http_request.c:117](src/http_request.c#L117) | Reads past the end of the string for a line like `"GET "`. | Check that the path starts with `/`. |
 | Directories are served as files | [src/file_handler.c:33](src/file_handler.c#L33) | 200 with an invalid `Content-Length`. | Use `stat()` and check `S_ISREG()`. |
-| `fopen()` not checked when streaming | [src/file_handler.c:80](src/file_handler.c#L80) | Crash if the file disappears between the opens. | Open the file once and pass the `FILE *`. |
+| `fopen()` not checked when streaming | [src/file_handler.c:85](src/file_handler.c#L85) | Crash if the file disappears between the opens. | Open the file once and pass the `FILE *`. |
 | Header changes not tracked | [Makefile](Makefile) | Edits to `.h` files need a manual rebuild. | [Add `-MMD -MP`](#track-header-dependencies-in-the-makefile). |
-| `make clean` removes the sample site | [Makefile:44](Makefile#L44) | `bin/*.html`, the CSS and the image are deleted. | Keep the site in its own directory, or delete only `bin/server`. |
+| `make clean` removes the sample site | [Makefile:44](Makefile#L44) | The demo site in `bin/` is deleted. | Keep the site in its own directory, or delete only `bin/server`. |

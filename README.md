@@ -31,7 +31,9 @@ Open <http://localhost:8080/index.html> in a browser, or use curl:
 curl -i http://localhost:8080/index.html
 ```
 
-The `bin/` directory also holds a small sample site (`index.html`, `styles.css`, an image and `pages/tutorial.html`). If you start the server from inside `bin/`, all the links and assets on the sample page load correctly. Press `Ctrl+C` to stop the server.
+The `bin/` directory also holds a demo site: a medieval castle's homepage in 1990s web style. Each "chamber" is one page about one HTTP feature the server implements (the request line, methods, status codes, headers, content types and streaming a 2 MB file), with a button that sends a real request and shows the real answer. All links are relative, so the site also works if you start the server from the project root and open <http://localhost:8080/bin/index.html>.
+
+Press `Ctrl+C` to stop the server. It closes its socket before exiting, and you can start it again right away.
 
 Each request is logged to the console:
 
@@ -57,13 +59,13 @@ Listening for connections...
     │  TCP connect to :8080                          │
     │ ─────────────────────────────────────────────▶ │  accept()
     │                                                │
-    │  GET /pages/tutorial.html HTTP/1.1             │  recv() up to 4 KB
+    │  GET /pages/status.html HTTP/1.1               │  recv() up to 4 KB
     │  Host: localhost:8080                          │  parse method and path
-    │ ─────────────────────────────────────────────▶ │  "/pages/tutorial.html" → ./pages/tutorial.html
+    │ ─────────────────────────────────────────────▶ │  "/pages/status.html" → ./pages/status.html
     │                                                │
     │  HTTP/1.1 200 OK                               │  send() status line + headers
     │  Content-Type: text/html; charset=UTF-8        │
-    │  Content-Length: 7215                          │
+    │  Content-Length: 9967                          │
     │  ...                                           │
     │                                                │
     │  <file contents>                               │  send() file in 4 KB chunks
@@ -74,7 +76,7 @@ Listening for connections...
 1. **Startup.** `init_server()` creates an IPv4 TCP socket, binds it to port 8080 on all network interfaces and starts listening.
 2. **Accept.** The main loop in `main.c` blocks on `accept()` and handles one client at a time.
 3. **Read and parse.** `read_request()` reads up to 4 KB from the socket and parses the first line of the request into an `HttpRequest` struct with the method and the path.
-4. **Resolve the path.** The leading `/` is removed and the path is opened relative to the server's working directory. For example, `/pages/tutorial.html` becomes `./pages/tutorial.html`.
+4. **Resolve the path.** The leading `/` is removed and the path is opened relative to the server's working directory. For example, `/pages/status.html` becomes `./pages/status.html`.
 5. **Respond.** `send_file()` fills an `HttpResponse` struct, serializes the status line and headers, and sends them. Then `stream_file_to_client()` sends the file body in 4 KB chunks. If the file can't be opened, the server sends a 404 response instead.
 6. **Close.** The server closes the connection (`Connection: close`) and waits for the next client.
 
@@ -87,7 +89,7 @@ This section lists which parts of HTTP the server implements. ✅ means implemen
 | Feature | Status | Notes |
 | --- | --- | --- |
 | Request line | ✅ | The method and the path are taken from the first line. |
-| Methods | ⚠️ | `GET`, `POST`, `PUT`, `PATCH`, `HEAD` and `OPTIONS` are recognized and logged, but every request is answered as a `GET`. `DELETE` is logged as `UNKNOWN` because of a bug. Unknown methods are also answered. |
+| Methods | ⚠️ | `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD` and `OPTIONS` are recognized and logged, but every request is answered as a `GET`. Unknown methods are also answered. |
 | HTTP version | ❌ | The version in the request line is ignored. |
 | Request headers | ❌ | They are read from the socket but not parsed. |
 | Request body | ❌ | Ignored. |
@@ -166,12 +168,15 @@ nano-server-c/
 │   ├── file_handler.c    # Opens files, picks the MIME type, sends files to the client
 │   └── utils.c           # long_to_string() helper (not used yet)
 ├── include/              # A header for each module, plus constants.h
-├── bin/                  # The compiled server and the sample site it serves
-│   ├── index.html
-│   ├── styles.css
-│   ├── image_0001.png
-│   └── pages/tutorial.html
+├── bin/                  # The compiled server and the demo site it serves
+│   ├── index.html        # Home page: the map of all chambers
+│   ├── pages/            # One page per HTTP feature
+│   ├── styles.css        # The one stylesheet for every page
+│   ├── images/           # Parchment and stone background tiles (PNG)
+│   ├── image_0001.png    # 2 MB image for the streaming demo
+│   └── samples/          # info.json and notes.txt, to test other MIME types
 ├── build/                # Object files (generated, ignored by git)
+├── DESIGN.md             # Design decisions for the demo site
 ├── Makefile
 └── compile_flags.txt     # Include path for clangd and other editor tools
 ```
@@ -192,10 +197,7 @@ The server has no command-line options. All settings are constants in the source
 Nano Server C is made for learning, not for production use.
 
 - **Don't expose it to an untrusted network.** Request paths are not checked, so a client can use `..` segments or an absolute path (for example `GET //etc/passwd`) to read any file that the server process can read. The server also listens on all network interfaces, so other devices on your network can reach it.
-- **A client that disconnects during a download stops the server.** `send()` then raises `SIGPIPE`, which the server doesn't handle, so the process is killed.
 - **One client at a time.** The server is single-threaded and blocking. A slow client delays every other client.
 - **Directories.** A request for a directory, such as `/pages`, returns `200` with an invalid `Content-Length` and an empty body.
-- **Broken `Server` header.** In `get_response_size()`, the length of the standard headers is assigned (`=`) to the running total instead of added to it (`+=`) ([src/http_response.c:59](src/http_response.c#L59)). Because of this, the next header overwrites part of the `Server` header in the real output.
-- **"Address already in use" after a restart.** The socket doesn't set `SO_REUSEADDR`, so if you restart the server right after you stop it, `bind()` can fail. Wait about a minute and try again.
 
 See [Known issues in Docs.md](Docs.md#12-known-issues) for the full list, with the location of each problem and how to fix it.

@@ -91,7 +91,7 @@ HttpMethod parse_method(const char *request_line) {
         return HTTP_METHOD_POST;
     } else if (strncmp(request_line, "PUT ", 4) == 0) {
         return HTTP_METHOD_PUT;
-    } else if (strncmp(request_line, "DELETE ", 8) == 0) {
+    } else if (strncmp(request_line, "DELETE ", 7) == 0) {
         return HTTP_METHOD_DELETE;
     } else if (strncmp(request_line, "PATCH ", 6) == 0) {
         return HTTP_METHOD_PATCH;

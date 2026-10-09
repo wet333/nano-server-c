@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="The response headers Nano Server C sends with every response, including Connection: close.">
+    <title>4. Headers · Nano Server C</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 1h12v6c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8z' fill='%239a1c14' stroke='%23b8860b'/%3E%3Cpath d='M8 3v10M4.5 7h7' stroke='%23f1e5c5' stroke-width='1.6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+        <header class="banner">
+            <a href="../index.html" aria-label="Nano Server C: home">
+<pre class="art" aria-hidden="true">░█▀█░█▀█░█▀█░█▀█░░░█▀▀░█▀▀░█▀▄░█░█░█▀▀░█▀▄░░░█▀▀
+░█░█░█▀█░█░█░█░█░░░▀▀█░█▀▀░█▀▄░▀▄▀░█▀▀░█▀▄░░░█░░
+░▀░▀░▀░▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░░░▀▀▀</pre>
+            </a>
+            <p class="motto">~ A tiny web server written in C ~</p>
+        </header>
+
+        <div class="layout">
+            <nav class="map" aria-label="Map of the castle">
+                <p class="map__title">Map of the Castle</p>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="request.html">1. Request line</a></li>
+                    <li><a href="methods.html">2. Methods</a></li>
+                    <li><a href="status.html">3. Status codes</a></li>
+                    <li><a href="headers.html" aria-current="page">4. Headers</a></li>
+                    <li><a href="mime.html">5. Content types</a></li>
+                    <li><a href="streaming.html">6. Streaming</a></li>
+                </ul>
+            </nav>
+
+            <main id="main">
+                <h1><span class="numeral">Chamber 4</span>Headers</h1>
+                <p class="lead">After the status line come the headers: one per line, each with a name, a colon and a value, and each line ends in <code>\r\n</code>. An empty line marks the end of the headers, and the body starts after it. This server sends the same headers with every response.</p>
+                <div class="table-wrap">
+                    <table class="ledger">
+                        <caption>The headers of this page</caption>
+                        <thead>
+                            <tr><th scope="col">Header</th><th scope="col">Value</th><th scope="col">What it tells the browser</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><th scope="row"><code>Content-Type</code></th><td><code>text/html; charset=UTF-8</code></td><td>What kind of file the body is. See <a href="mime.html">Chamber 5</a>.</td></tr>
+                            <tr><th scope="row"><code>Content-Length</code></th><td>The size of the file in bytes</td><td>How many bytes of body to expect. See <a href="streaming.html">Chamber 6</a>.</td></tr>
+                            <tr><th scope="row"><code>Connection</code></th><td><code>close</code></td><td>The server closes the connection after this response.</td></tr>
+                            <tr><th scope="row"><code>Server</code></th><td><code>AWetServerV1.0</code></td><td>The server's name, from <code>SERVER_NAME</code> in <code>constants.h</code>.</td></tr>
+                            <tr><th scope="row"><code>Server-Token</code></th><td><code>987654321</code></td><td>A custom header, sent with <code>200</code> responses only. It has no meaning: it shows that custom headers work.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Try It</h2>
+                <noscript><p><em>The button on this page needs JavaScript. The links still work.</em></p></noscript>
+                <div class="controls" data-needs-script hidden>
+                    <button class="button" type="button" data-break>⚔ Request this page and show its headers</button>
+                </div>
+                <div class="verdict" aria-live="polite">
+                    <p class="seal seal--waiting" data-seal>Waiting</p>
+                    <pre class="scroll" data-scroll>Press the button to request this page again.</pre>
+                </div>
+
+                <h2>Connection: close</h2>
+                <p>HTTP/1.1 lets a browser send many requests over one connection. This server doesn't support that: it closes the connection after every response, so the browser has to open a new connection for each file. This page alone needed several: one for the page, one for the stylesheet and one for each background image.</p>
+                <p>The server also handles one client at a time. While it sends a large file to one client, the others wait in a short queue, set up by <code>listen()</code>.</p>
+                <p class="forge"><strong>In the code</strong> <code>src/http_response.c</code>: <code>get_response_size()</code> writes the status line and the headers, and <code>response_add_header()</code> adds custom ones, up to 20.</p>
+
+                <nav class="ring" aria-label="Previous and next chamber">
+                    <p class="ring__title">More Chambers</p>
+                    <ul>
+                        <li><a href="status.html" rel="prev">« 3. Status codes</a></li>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="mime.html" rel="next">5. Content types »</a></li>
+                    </ul>
+                </nav>
+            </main>
+        </div>
+
+        <footer class="colophon">
+            <p class="sword" aria-hidden="true">o==[]::::::::::::::&gt; ⚜ &lt;::::::::::::::[]==o</p>
+            <ul class="badges">
+                <li><span class="badge badge--c" role="img" aria-label="Served by C">Served<br>by C</span></li>
+                <li><span class="badge badge--candle" role="img" aria-label="Best viewed by candlelight">Best viewed by candle</span></li>
+                <li><span class="badge badge--quill" role="img" aria-label="Made with a quill">Made with a quill</span></li>
+            </ul>
+            <p>Best viewed by candlelight at 800 × 600.</p>
+            <p>Every page, picture and stylesheet on this site was sent by Nano Server C, one request at a time.</p>
+        </footer>
+    </div>
+    <script>
+        (() => {
+            "use strict";
+
+            const NAMES = {
+                "content-type": "Content-Type",
+                "content-length": "Content-Length",
+                "connection": "Connection",
+                "server": "Server",
+                "server-token": "Server-Token",
+            };
+            const ORDER = Object.keys(NAMES);
+            const number = new Intl.NumberFormat("en");
+
+            for (const el of document.querySelectorAll("[data-needs-script]")) {
+                el.hidden = false;
+            }
+
+            // Send one request and read the whole response. Reading every byte
+            // keeps the server from logging a client that left halfway.
+            async function summon(path, options = {}) {
+                const started = performance.now();
+                const res = await fetch(path, { cache: "no-store", ...options });
+                const body = await res.arrayBuffer();
+                return { res, body, ms: performance.now() - started };
+            }
+
+            // The response head, rebuilt in the order the server writes it.
+            function head(res) {
+                const rank = (name) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
+                const names = [...res.headers.keys()].sort((a, b) => rank(a) - rank(b));
+                const lines = names.map((name) => `${NAMES[name] ?? name}: ${res.headers.get(name)}`);
+                return [`HTTP/1.1 ${res.status} ${res.statusText}`, ...lines].join("\n");
+            }
+
+            // Press the status code into the wax seal.
+            function stamp(seal, res) {
+                const reason = document.createElement("small");
+                reason.textContent = res.statusText;
+                seal.className = res.ok ? "seal" : "seal seal--error";
+                seal.replaceChildren(String(res.status), reason);
+            }
+
+            function noAnswer(seal, scroll) {
+                seal.className = "seal seal--waiting";
+                seal.textContent = "No response";
+                scroll.textContent = "No response. Is the server still running?";
+            }
+
+            const seal = document.querySelector("[data-seal]");
+            const scroll = document.querySelector("[data-scroll]");
+
+            document.querySelector("[data-break]").addEventListener("click", async () => {
+                try {
+                    const { res, body } = await summon(location.pathname);
+                    stamp(seal, res);
+                    const start = new TextDecoder().decode(body.slice(0, 60)).split("\n")[0];
+                    scroll.textContent = `${head(res)}\n\n${start} …\n\n(The empty line above is where the headers end and the body starts.)`;
+                } catch {
+                    noAnswer(seal, scroll);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

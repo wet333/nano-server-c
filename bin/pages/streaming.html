@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="How Nano Server C sends a 2 MB file in 4 KB pieces, announced by Content-Length.">
+    <title>6. Streaming · Nano Server C</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 1h12v6c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8z' fill='%239a1c14' stroke='%23b8860b'/%3E%3Cpath d='M8 3v10M4.5 7h7' stroke='%23f1e5c5' stroke-width='1.6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+        <header class="banner">
+            <a href="../index.html" aria-label="Nano Server C: home">
+<pre class="art" aria-hidden="true">░█▀█░█▀█░█▀█░█▀█░░░█▀▀░█▀▀░█▀▄░█░█░█▀▀░█▀▄░░░█▀▀
+░█░█░█▀█░█░█░█░█░░░▀▀█░█▀▀░█▀▄░▀▄▀░█▀▀░█▀▄░░░█░░
+░▀░▀░▀░▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░░░▀▀▀</pre>
+            </a>
+            <p class="motto">~ A tiny web server written in C ~</p>
+        </header>
+
+        <div class="layout">
+            <nav class="map" aria-label="Map of the castle">
+                <p class="map__title">Map of the Castle</p>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="request.html">1. Request line</a></li>
+                    <li><a href="methods.html">2. Methods</a></li>
+                    <li><a href="status.html">3. Status codes</a></li>
+                    <li><a href="headers.html">4. Headers</a></li>
+                    <li><a href="mime.html">5. Content types</a></li>
+                    <li><a href="streaming.html" aria-current="page">6. Streaming</a></li>
+                </ul>
+            </nav>
+
+            <main id="main">
+                <h1><span class="numeral">Chamber 6</span>Streaming a Large File</h1>
+                <p class="lead">This picture of a knight is 2,056,264 bytes, but the server never loads it into memory all at once. It reads 4,096 bytes from disk, sends them, and reuses the same small buffer for the next piece, until the whole file is sent.</p>
+                <figure class="portrait">
+                    <img src="../image_0001.png" width="944" height="1408" loading="lazy" decoding="async"
+                         alt="Ink drawing of an armored knight holding a long sword among broken stone ruins.">
+                    <figcaption>2&nbsp;MB, sent in 503 pieces</figcaption>
+                </figure>
+
+                <h2>The Numbers</h2>
+                <div class="table-wrap">
+                    <table class="ledger">
+                        <tbody>
+                            <tr><th scope="row"><code>Content-Length</code></th><td><code>2056264</code>, sent before the first byte of the picture, so your browser knows when the picture is complete.</td></tr>
+                            <tr><th scope="row">Pieces</th><td>502 pieces of 4,096 bytes, and a last piece of 72 bytes.</td></tr>
+                            <tr><th scope="row"><code>send()</code> calls</th><td>1 for the status line and the headers, 503 for the picture.</td></tr>
+                            <tr><th scope="row">Memory</th><td>One 4,096-byte buffer, whatever the size of the file.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Try It</h2>
+                <noscript><p><em>The button on this page needs JavaScript. The links still work.</em></p></noscript>
+                <div class="controls" data-needs-script hidden>
+                    <button class="button" type="button" data-summon>⚔ Download the picture and count the pieces</button>
+                </div>
+                <div class="verdict" aria-live="polite">
+                    <p class="seal seal--waiting" data-seal>Waiting</p>
+                    <pre class="scroll" data-scroll>Press the button to download the picture again.</pre>
+                </div>
+
+                <h2>If the Client Leaves Early</h2>
+                <p>If you close this page while the picture is still downloading, the server's next <code>send()</code> fails. The server writes <code>Error sending file: Broken pipe</code> to its log, stops sending and moves on to the next client. Before a recent fix, this crashed the whole server.</p>
+                <p class="forge"><strong>In the code</strong> <code>src/file_handler.c</code>: <code>get_file_size()</code> measures the file for <code>Content-Length</code>, and <code>stream_file_to_client()</code> sends it in pieces of <code>BUFFER_SIZE</code> bytes.</p>
+
+                <nav class="ring" aria-label="Previous and next chamber">
+                    <p class="ring__title">More Chambers</p>
+                    <ul>
+                        <li><a href="mime.html" rel="prev">« 5. Content types</a></li>
+                        <li><a href="../index.html" rel="next">Home »</a></li>
+                    </ul>
+                </nav>
+            </main>
+        </div>
+
+        <footer class="colophon">
+            <p class="sword" aria-hidden="true">o==[]::::::::::::::&gt; ⚜ &lt;::::::::::::::[]==o</p>
+            <ul class="badges">
+                <li><span class="badge badge--c" role="img" aria-label="Served by C">Served<br>by C</span></li>
+                <li><span class="badge badge--candle" role="img" aria-label="Best viewed by candlelight">Best viewed by candle</span></li>
+                <li><span class="badge badge--quill" role="img" aria-label="Made with a quill">Made with a quill</span></li>
+            </ul>
+            <p>Best viewed by candlelight at 800 × 600.</p>
+            <p>Every page, picture and stylesheet on this site was sent by Nano Server C, one request at a time.</p>
+        </footer>
+    </div>
+    <script>
+        (() => {
+            "use strict";
+
+            const NAMES = {
+                "content-type": "Content-Type",
+                "content-length": "Content-Length",
+                "connection": "Connection",
+                "server": "Server",
+                "server-token": "Server-Token",
+            };
+            const ORDER = Object.keys(NAMES);
+            const number = new Intl.NumberFormat("en");
+
+            for (const el of document.querySelectorAll("[data-needs-script]")) {
+                el.hidden = false;
+            }
+
+            // Send one request and read the whole response. Reading every byte
+            // keeps the server from logging a client that left halfway.
+            async function summon(path, options = {}) {
+                const started = performance.now();
+                const res = await fetch(path, { cache: "no-store", ...options });
+                const body = await res.arrayBuffer();
+                return { res, body, ms: performance.now() - started };
+            }
+
+            // The response head, rebuilt in the order the server writes it.
+            function head(res) {
+                const rank = (name) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
+                const names = [...res.headers.keys()].sort((a, b) => rank(a) - rank(b));
+                const lines = names.map((name) => `${NAMES[name] ?? name}: ${res.headers.get(name)}`);
+                return [`HTTP/1.1 ${res.status} ${res.statusText}`, ...lines].join("\n");
+            }
+
+            // Press the status code into the wax seal.
+            function stamp(seal, res) {
+                const reason = document.createElement("small");
+                reason.textContent = res.statusText;
+                seal.className = res.ok ? "seal" : "seal seal--error";
+                seal.replaceChildren(String(res.status), reason);
+            }
+
+            function noAnswer(seal, scroll) {
+                seal.className = "seal seal--waiting";
+                seal.textContent = "No response";
+                scroll.textContent = "No response. Is the server still running?";
+            }
+
+            const seal = document.querySelector("[data-seal]");
+            const scroll = document.querySelector("[data-scroll]");
+            const CHUNK = 4096;
+
+            document.querySelector("[data-summon]").addEventListener("click", async () => {
+                scroll.textContent = "Downloading…";
+                try {
+                    const { res, body, ms } = await summon("../image_0001.png");
+                    stamp(seal, res);
+                    const bytes = body.byteLength;
+                    const full = Math.floor(bytes / CHUNK);
+                    const rest = bytes % CHUNK;
+                    const pieces = rest ? `${number.format(full)} pieces of 4,096 bytes and a last piece of ${number.format(rest)} bytes` : `${number.format(full)} pieces of 4,096 bytes`;
+                    scroll.textContent = `${head(res)}\n\nReceived ${number.format(bytes)} bytes in ${ms.toFixed(1)} ms.\nThat is ${pieces}.`;
+                } catch {
+                    noAnswer(seal, scroll);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

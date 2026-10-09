@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="The HTTP methods Nano Server C recognizes, and why it answers them all the same way.">
+    <title>2. Methods · Nano Server C</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 1h12v6c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8z' fill='%239a1c14' stroke='%23b8860b'/%3E%3Cpath d='M8 3v10M4.5 7h7' stroke='%23f1e5c5' stroke-width='1.6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+        <header class="banner">
+            <a href="../index.html" aria-label="Nano Server C: home">
+<pre class="art" aria-hidden="true">░█▀█░█▀█░█▀█░█▀█░░░█▀▀░█▀▀░█▀▄░█░█░█▀▀░█▀▄░░░█▀▀
+░█░█░█▀█░█░█░█░█░░░▀▀█░█▀▀░█▀▄░▀▄▀░█▀▀░█▀▄░░░█░░
+░▀░▀░▀░▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░░░▀▀▀</pre>
+            </a>
+            <p class="motto">~ A tiny web server written in C ~</p>
+        </header>
+
+        <div class="layout">
+            <nav class="map" aria-label="Map of the castle">
+                <p class="map__title">Map of the Castle</p>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="request.html">1. Request line</a></li>
+                    <li><a href="methods.html" aria-current="page">2. Methods</a></li>
+                    <li><a href="status.html">3. Status codes</a></li>
+                    <li><a href="headers.html">4. Headers</a></li>
+                    <li><a href="mime.html">5. Content types</a></li>
+                    <li><a href="streaming.html">6. Streaming</a></li>
+                </ul>
+            </nav>
+
+            <main id="main">
+                <h1><span class="numeral">Chamber 2</span>Methods</h1>
+                <p class="lead">The first word of every request is its method: what the client wants to do. The server recognizes seven methods by name. But it only knows how to do one thing, send a file, so it answers every method the same way.</p>
+                <div class="table-wrap">
+                    <table class="ledger">
+                        <caption>Each method is sent for this page, one after another.</caption>
+                        <thead>
+                            <tr><th scope="col">Method</th><th scope="col">What it means in HTTP</th><th scope="col">Server response</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr data-method="GET"><th scope="row"><code>GET</code></th><td>Get a resource.</td><td class="result">—</td></tr>
+                            <tr data-method="POST"><th scope="row"><code>POST</code></th><td>Send data for the server to process.</td><td class="result">—</td></tr>
+                            <tr data-method="PUT"><th scope="row"><code>PUT</code></th><td>Store a resource at this path.</td><td class="result">—</td></tr>
+                            <tr data-method="DELETE"><th scope="row"><code>DELETE</code></th><td>Delete the resource.</td><td class="result">—</td></tr>
+                            <tr data-method="PATCH"><th scope="row"><code>PATCH</code></th><td>Change part of a resource.</td><td class="result">—</td></tr>
+                            <tr data-method="HEAD"><th scope="row"><code>HEAD</code></th><td>Like GET, but only the headers.</td><td class="result">—</td></tr>
+                            <tr data-method="OPTIONS"><th scope="row"><code>OPTIONS</code></th><td>Ask which methods are allowed.</td><td class="result">—</td></tr>
+                            <tr data-method="BREW"><th scope="row"><code>BREW</code></th><td>Not a real method. The server logs it as UNKNOWN.</td><td class="result">—</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <noscript><p><em>The button on this page needs JavaScript. The links still work.</em></p></noscript>
+                <div class="controls" data-needs-script hidden>
+                    <button class="button" type="button" data-send-all>⚔ Send all eight methods</button>
+                </div>
+                <p>Look at the terminal where the server is running while you press the button. Each request shows up as <code>Request Method: POST</code> and so on, and <code>BREW</code> shows up as <code>Request Method: UNKNOWN</code>.</p>
+
+                <h2>Why Are They All the Same?</h2>
+                <p><code>parse_method()</code> turns the first word into one of eight values, and <code>main.c</code> writes it to the log. Then it calls <code>send_file()</code> whatever the method is. The body sent with <code>POST</code>, <code>PUT</code> and <code>PATCH</code> is never read.</p>
+                <p>For <code>HEAD</code>, the server sends the whole file anyway. HTTP says a <code>HEAD</code> response has no body, so your browser throws those bytes away, and the table shows 0.</p>
+                <p>A complete server would save the body of a <code>PUT</code>, delete a file on <code>DELETE</code>, and answer <code>OPTIONS</code> with an <code>Allow</code> header. This one only reads files.</p>
+                <p class="forge"><strong>In the code</strong> <code>src/http_request.c</code>: <code>parse_method()</code>. The log line is written in <code>src/main.c</code>.</p>
+
+                <nav class="ring" aria-label="Previous and next chamber">
+                    <p class="ring__title">More Chambers</p>
+                    <ul>
+                        <li><a href="request.html" rel="prev">« 1. Request line</a></li>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="status.html" rel="next">3. Status codes »</a></li>
+                    </ul>
+                </nav>
+            </main>
+        </div>
+
+        <footer class="colophon">
+            <p class="sword" aria-hidden="true">o==[]::::::::::::::&gt; ⚜ &lt;::::::::::::::[]==o</p>
+            <ul class="badges">
+                <li><span class="badge badge--c" role="img" aria-label="Served by C">Served<br>by C</span></li>
+                <li><span class="badge badge--candle" role="img" aria-label="Best viewed by candlelight">Best viewed by candle</span></li>
+                <li><span class="badge badge--quill" role="img" aria-label="Made with a quill">Made with a quill</span></li>
+            </ul>
+            <p>Best viewed by candlelight at 800 × 600.</p>
+            <p>Every page, picture and stylesheet on this site was sent by Nano Server C, one request at a time.</p>
+        </footer>
+    </div>
+    <script>
+        (() => {
+            "use strict";
+
+            const NAMES = {
+                "content-type": "Content-Type",
+                "content-length": "Content-Length",
+                "connection": "Connection",
+                "server": "Server",
+                "server-token": "Server-Token",
+            };
+            const ORDER = Object.keys(NAMES);
+            const number = new Intl.NumberFormat("en");
+
+            for (const el of document.querySelectorAll("[data-needs-script]")) {
+                el.hidden = false;
+            }
+
+            // Send one request and read the whole response. Reading every byte
+            // keeps the server from logging a client that left halfway.
+            async function summon(path, options = {}) {
+                const started = performance.now();
+                const res = await fetch(path, { cache: "no-store", ...options });
+                const body = await res.arrayBuffer();
+                return { res, body, ms: performance.now() - started };
+            }
+
+            // The response head, rebuilt in the order the server writes it.
+            function head(res) {
+                const rank = (name) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
+                const names = [...res.headers.keys()].sort((a, b) => rank(a) - rank(b));
+                const lines = names.map((name) => `${NAMES[name] ?? name}: ${res.headers.get(name)}`);
+                return [`HTTP/1.1 ${res.status} ${res.statusText}`, ...lines].join("\n");
+            }
+
+            // Press the status code into the wax seal.
+            function stamp(seal, res) {
+                const reason = document.createElement("small");
+                reason.textContent = res.statusText;
+                seal.className = res.ok ? "seal" : "seal seal--error";
+                seal.replaceChildren(String(res.status), reason);
+            }
+
+            function noAnswer(seal, scroll) {
+                seal.className = "seal seal--waiting";
+                seal.textContent = "No response";
+                scroll.textContent = "No response. Is the server still running?";
+            }
+
+            const button = document.querySelector("[data-send-all]");
+            const withBody = ["POST", "PUT", "PATCH"];
+
+            button.addEventListener("click", async () => {
+                button.disabled = true;
+                for (const row of document.querySelectorAll("[data-method]")) {
+                    const method = row.dataset.method;
+                    const cell = row.querySelector(".result");
+                    cell.textContent = "…";
+                    try {
+                        const options = { method };
+                        if (withBody.includes(method)) {
+                            options.body = "knight=Arthur";
+                        }
+                        // One at a time: the server handles one client at a time.
+                        const { res, body } = await summon(location.pathname, options);
+                        cell.className = "result " + (res.ok ? "ok" : "not-found");
+                        cell.textContent = `${res.status} ${res.statusText} · ${number.format(body.byteLength)} bytes`;
+                    } catch {
+                        cell.textContent = "No response";
+                    }
+                }
+                button.disabled = false;
+            });
+        })();
+    </script>
+</body>
+</html>

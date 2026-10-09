@@ -2,30 +2,133 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Servidor C - Agustin Wet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A medieval homepage in 1990s style, served by Nano Server C. Each chamber shows one HTTP feature that the server implements.">
+    <title>Nano Server C · Demo Castle</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 1h12v6c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8z' fill='%239a1c14' stroke='%23b8860b'/%3E%3Cpath d='M8 3v10M4.5 7h7' stroke='%23f1e5c5' stroke-width='1.6'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>¡Bienvenido a tu Servidor Web en C!</h1>
-        <p>Esta página está siendo servida desde un archivo real.</p>
-        <hr>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+        <header class="banner">
+            <a href="index.html" aria-label="Nano Server C: home">
+<pre class="art" aria-hidden="true">░█▀█░█▀█░█▀█░█▀█░░░█▀▀░█▀▀░█▀▄░█░█░█▀▀░█▀▄░░░█▀▀
+░█░█░█▀█░█░█░█░█░░░▀▀█░█▀▀░█▀▄░▀▄▀░█▀▀░█▀▄░░░█░░
+░▀░▀░▀░▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░░░▀▀▀</pre>
+            </a>
+            <p class="motto">~ A tiny web server written in C ~</p>
+        </header>
 
-        <img id="random-image" src="image_0001.png" alt="Random image">
-        <hr>
+        <div class="layout">
+            <nav class="map" aria-label="Map of the castle">
+                <p class="map__title">Map of the Castle</p>
+                <ul>
+                    <li><a href="index.html" aria-current="page">Home</a></li>
+                    <li><a href="pages/request.html">1. Request line</a></li>
+                    <li><a href="pages/methods.html">2. Methods</a></li>
+                    <li><a href="pages/status.html">3. Status codes</a></li>
+                    <li><a href="pages/headers.html">4. Headers</a></li>
+                    <li><a href="pages/mime.html">5. Content types</a></li>
+                    <li><a href="pages/streaming.html">6. Streaming</a></li>
+                </ul>
+            </nav>
 
-        <p>Lectura por buffers implementada.</p>
-        <h3>Features</h3>
-        <ul>
-            <li>HTTP Headers</li>
-            <li>Some MIME types</li>
-            <li>File responses</li>
-        </ul>
+            <main id="main">
+                <h1><span class="numeral">Home</span>Welcome to the Castle</h1>
+<pre class="art art--castle" aria-hidden="true">       |&gt;                      |&gt;
+       ^                       ^
+      /|\                     /|\
+     /_|_\                   /_|_\
+     |   |   _   _   _   _   |   |
+     | o |__| |_| |_| |_| |__| o |
+     |   |                   |   |
+     |   |      _______      |   |
+     | o |     |       |     | o |
+     |   |     |   |   |     |   |
+_____|___|_____|___|___|_____|___|_____</pre>
+                <p class="lead">Welcome! This castle is the demo site of Nano Server C, a web server written in fewer than 600 lines of C. It only knows a small part of HTTP, and this site shows each part on its own page. Every page, picture and stylesheet you see here was sent by that server, one request at a time.</p>
 
-        <h3>Pages</h3>
-        <ul>
-            <li><a href="/pages/tutorial.html">Tutorial</a></li>
-        </ul>
+                <div class="marquee" role="marquee" aria-label="Latest news">
+                    <p>★ News ★ The server no longer crashes when a visitor leaves in the middle of a download ★ Ctrl+C now closes the server cleanly, and you can start it again right away ★ DELETE is now recognized ★ The Server header is fixed ★</p>
+                </div>
+
+                <h2>The Chambers</h2>
+                <p>Each chamber shows one HTTP feature that the server implements. Every chamber has a button that sends a real request to the server and shows you the real response.</p>
+                <div class="table-wrap">
+                    <table class="ledger">
+                        <caption>Six chambers, one feature each</caption>
+                        <thead>
+                            <tr><th scope="col">Chamber</th><th scope="col">What it shows</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><a href="pages/request.html">1. Request line</a></td><td>How the server reads the method and the path, and finds the file to send.</td></tr>
+                            <tr><td><a href="pages/methods.html">2. Methods</a></td><td>The HTTP methods the server recognizes, and why it answers all of them the same way.</td></tr>
+                            <tr><td><a href="pages/status.html">3. Status codes</a></td><td>The status line, and the two codes the server sends: <code>200 OK</code> and <code>404 Not Found</code>.</td></tr>
+                            <tr><td><a href="pages/headers.html">4. Headers</a></td><td>The headers sent with every response, including <code>Connection: close</code>.</td></tr>
+                            <tr><td><a href="pages/mime.html">5. Content types</a></td><td>How the file extension decides the <code>Content-Type</code>.</td></tr>
+                            <tr><td><a href="pages/streaming.html">6. Streaming</a></td><td>A 2&nbsp;MB picture sent in 4&nbsp;KB pieces, announced by <code>Content-Length</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <section class="construction" aria-labelledby="unbuilt">
+                    <h2 id="unbuilt">Under Construction</h2>
+                    <p>These parts of HTTP are <strong>not implemented yet</strong>:</p>
+                    <ul>
+                        <li>Keep-alive: every connection is closed after one response.</li>
+                        <li>Query strings: <code>?page=2</code> becomes part of the file name.</li>
+                        <li>Request headers and bodies, and <code>HEAD</code> responses without a body.</li>
+                        <li>A default page for <code>/</code>: you have to ask for <code>/index.html</code>.</li>
+                        <li>Chunked transfer encoding, compression and HTTPS.</li>
+                        <li>A guestbook: the server can read files, but never write them.</li>
+                    </ul>
+                </section>
+
+                <p class="counter">You have visited this page <span class="counter__digits" role="img" aria-label="1" data-counter><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span><span>1</span></span> time(s) from this browser.</p>
+
+                <nav class="ring" aria-label="Previous and next chamber">
+                    <p class="ring__title">More Chambers</p>
+                    <ul>
+                        <li><a href="pages/streaming.html" rel="prev">« 6. Streaming</a></li>
+                        <li><a href="pages/request.html" rel="next">1. Request line »</a></li>
+                    </ul>
+                </nav>
+            </main>
+        </div>
+
+        <footer class="colophon">
+            <p class="sword" aria-hidden="true">o==[]::::::::::::::&gt; ⚜ &lt;::::::::::::::[]==o</p>
+            <ul class="badges">
+                <li><span class="badge badge--c" role="img" aria-label="Served by C">Served<br>by C</span></li>
+                <li><span class="badge badge--candle" role="img" aria-label="Best viewed by candlelight">Best viewed by candle</span></li>
+                <li><span class="badge badge--quill" role="img" aria-label="Made with a quill">Made with a quill</span></li>
+            </ul>
+            <p>Best viewed by candlelight at 800 × 600.</p>
+            <p>Every page, picture and stylesheet on this site was sent by Nano Server C, one request at a time.</p>
+        </footer>
     </div>
+    <script>
+        (() => {
+            "use strict";
+
+            // A 1990s hit counter. It only counts this browser's visits.
+            const counter = document.querySelector("[data-counter]");
+            let visits = 1;
+            try {
+                visits = Number(localStorage.getItem("gate-visits") || 0) + 1;
+                localStorage.setItem("gate-visits", String(visits));
+            } catch {
+                // Storage is blocked: count this visit only.
+            }
+            const digits = [...String(visits).padStart(6, "0")].map((digit) => {
+                const span = document.createElement("span");
+                span.textContent = digit;
+                return span;
+            });
+            counter.replaceChildren(...digits);
+            counter.setAttribute("aria-label", String(visits));
+        })();
+    </script>
 </body>
 </html>

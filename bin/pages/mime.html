@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="How Nano Server C chooses the Content-Type of a file from its extension.">
+    <title>5. Content Types · Nano Server C</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 1h12v6c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8z' fill='%239a1c14' stroke='%23b8860b'/%3E%3Cpath d='M8 3v10M4.5 7h7' stroke='%23f1e5c5' stroke-width='1.6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+        <header class="banner">
+            <a href="../index.html" aria-label="Nano Server C: home">
+<pre class="art" aria-hidden="true">░█▀█░█▀█░█▀█░█▀█░░░█▀▀░█▀▀░█▀▄░█░█░█▀▀░█▀▄░░░█▀▀
+░█░█░█▀█░█░█░█░█░░░▀▀█░█▀▀░█▀▄░▀▄▀░█▀▀░█▀▄░░░█░░
+░▀░▀░▀░▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░░░▀▀▀</pre>
+            </a>
+            <p class="motto">~ A tiny web server written in C ~</p>
+        </header>
+
+        <div class="layout">
+            <nav class="map" aria-label="Map of the castle">
+                <p class="map__title">Map of the Castle</p>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="request.html">1. Request line</a></li>
+                    <li><a href="methods.html">2. Methods</a></li>
+                    <li><a href="status.html">3. Status codes</a></li>
+                    <li><a href="headers.html">4. Headers</a></li>
+                    <li><a href="mime.html" aria-current="page">5. Content types</a></li>
+                    <li><a href="streaming.html">6. Streaming</a></li>
+                </ul>
+            </nav>
+
+            <main id="main">
+                <h1><span class="numeral">Chamber 5</span>Content Types</h1>
+                <p class="lead">A browser can't tell a web page from a picture just by looking at the bytes. So the server labels every response with a <code>Content-Type</code> header. It decides the label from one thing only: the text after the last dot in the file name.</p>
+                <div class="table-wrap">
+                    <table class="ledger">
+                        <caption>Five files, and the Content-Type the server sent for each</caption>
+                        <thead>
+                            <tr><th scope="col">File</th><th scope="col">Extension</th><th scope="col">Content-Type received</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr data-file="../index.html"><td><a href="../index.html">/index.html</a></td><td><code>.html</code> or <code>.htm</code></td><td class="result">—</td></tr>
+                            <tr data-file="../styles.css"><td><a href="../styles.css">/styles.css</a></td><td><code>.css</code></td><td class="result">—</td></tr>
+                            <tr data-file="../samples/info.json"><td><a href="../samples/info.json">/samples/info.json</a></td><td><code>.json</code></td><td class="result">—</td></tr>
+                            <tr data-file="../images/parchment.png"><td><a href="../images/parchment.png">/images/parchment.png</a></td><td><code>.png</code></td><td class="result">—</td></tr>
+                            <tr data-file="../samples/notes.txt"><td><a href="../samples/notes.txt">/samples/notes.txt</a></td><td>Anything else, like <code>.txt</code></td><td class="result">—</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <noscript><p><em>The button on this page needs JavaScript. The links still work.</em></p></noscript>
+                <div class="controls" data-needs-script hidden>
+                    <button class="button" type="button" data-inspect>⚔ Request all five files</button>
+                </div>
+
+                <h2>Every Other File</h2>
+                <p>Any other extension, or no extension at all, gets <code>text/plain; charset=UTF-8</code>. That includes <code>.js</code>, <code>.svg</code> and <code>.gif</code> files. In 1996 every homepage had animated GIFs; this server would label them as plain text, so the background images of this castle are PNG files instead.</p>
+                <p>The check is case-sensitive: <code>PHOTO.PNG</code> would be labelled as plain text too.</p>
+                <p class="forge"><strong>In the code</strong> <code>src/file_handler.c</code>: <code>get_mimetype_for_file()</code> reads the extension, and <code>get_mime_string()</code> in <code>src/http_response.c</code> turns it into the header value.</p>
+
+                <nav class="ring" aria-label="Previous and next chamber">
+                    <p class="ring__title">More Chambers</p>
+                    <ul>
+                        <li><a href="headers.html" rel="prev">« 4. Headers</a></li>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="streaming.html" rel="next">6. Streaming »</a></li>
+                    </ul>
+                </nav>
+            </main>
+        </div>
+
+        <footer class="colophon">
+            <p class="sword" aria-hidden="true">o==[]::::::::::::::&gt; ⚜ &lt;::::::::::::::[]==o</p>
+            <ul class="badges">
+                <li><span class="badge badge--c" role="img" aria-label="Served by C">Served<br>by C</span></li>
+                <li><span class="badge badge--candle" role="img" aria-label="Best viewed by candlelight">Best viewed by candle</span></li>
+                <li><span class="badge badge--quill" role="img" aria-label="Made with a quill">Made with a quill</span></li>
+            </ul>
+            <p>Best viewed by candlelight at 800 × 600.</p>
+            <p>Every page, picture and stylesheet on this site was sent by Nano Server C, one request at a time.</p>
+        </footer>
+    </div>
+    <script>
+        (() => {
+            "use strict";
+
+            const NAMES = {
+                "content-type": "Content-Type",
+                "content-length": "Content-Length",
+                "connection": "Connection",
+                "server": "Server",
+                "server-token": "Server-Token",
+            };
+            const ORDER = Object.keys(NAMES);
+            const number = new Intl.NumberFormat("en");
+
+            for (const el of document.querySelectorAll("[data-needs-script]")) {
+                el.hidden = false;
+            }
+
+            // Send one request and read the whole response. Reading every byte
+            // keeps the server from logging a client that left halfway.
+            async function summon(path, options = {}) {
+                const started = performance.now();
+                const res = await fetch(path, { cache: "no-store", ...options });
+                const body = await res.arrayBuffer();
+                return { res, body, ms: performance.now() - started };
+            }
+
+            // The response head, rebuilt in the order the server writes it.
+            function head(res) {
+                const rank = (name) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
+                const names = [...res.headers.keys()].sort((a, b) => rank(a) - rank(b));
+                const lines = names.map((name) => `${NAMES[name] ?? name}: ${res.headers.get(name)}`);
+                return [`HTTP/1.1 ${res.status} ${res.statusText}`, ...lines].join("\n");
+            }
+
+            // Press the status code into the wax seal.
+            function stamp(seal, res) {
+                const reason = document.createElement("small");
+                reason.textContent = res.statusText;
+                seal.className = res.ok ? "seal" : "seal seal--error";
+                seal.replaceChildren(String(res.status), reason);
+            }
+
+            function noAnswer(seal, scroll) {
+                seal.className = "seal seal--waiting";
+                seal.textContent = "No response";
+                scroll.textContent = "No response. Is the server still running?";
+            }
+
+            for (const row of document.querySelectorAll("[data-file]")) {
+                row.querySelector("a").textContent = new URL(row.dataset.file, location.href).pathname;
+            }
+
+            const button = document.querySelector("[data-inspect]");
+            button.addEventListener("click", async () => {
+                button.disabled = true;
+                for (const row of document.querySelectorAll("[data-file]")) {
+                    const cell = row.querySelector(".result");
+                    cell.textContent = "…";
+                    try {
+                        const { res } = await summon(row.dataset.file);
+                        cell.className = "result " + (res.ok ? "ok" : "not-found");
+                        cell.textContent = res.headers.get("content-type") ?? "(none)";
+                    } catch {
+                        cell.textContent = "No response";
+                    }
+                }
+                button.disabled = false;
+            });
+        })();
+    </script>
+</body>
+</html>

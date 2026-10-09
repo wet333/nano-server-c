@@ -1,155 +1,705 @@
+/* =============================================================================
+   Ye Olde Webbe Server · demo site for Nano Server C
+   A 1990s homepage for a medieval castle, drawn with 1980s BBS-style ASCII art.
+   Tokens live in :root, and DESIGN.md explains every decision.
+   The C server only labels .html, .htm, .css, .json and .png correctly, so this
+   site has no GIFs, no web fonts and no .js files. Textures are PNG tiles.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ tokens */
+
+:root {
+    color-scheme: light;
+
+    --parchment: #f1e5c5;
+    --vellum: #e6d5a8;        /* darker parchment: scrolls, table heads, boxes */
+    --roller: #c4a86a;        /* wooden ends of a scroll */
+    --ink: #2a1b0e;
+    --faded: #5c4529;
+    --rubric: #9a1c14;        /* the red ink of medieval headings */
+    --lapis: #1c3f94;         /* links, like 1990s blue */
+    --lapis-visited: #5b2a6e; /* visited links, like 1990s purple */
+    --gold: #b8860b;          /* illumination and frames, never text */
+    --stone: #8c8473;         /* bevelled frames */
+    --stone-light: #d9d0b8;   /* buttons */
+    --wall: #423c34;          /* behind the stone texture */
+    --verdant: #1d5e26;       /* 2xx results in tables */
+    --wax: #8e1515;
+    --wax-black: #2b2b2b;
+    --wax-text: #f6e7c1;
+    --night: #1c1209;         /* marquee and hit counter */
+    --led: #f0c040;
+    --hazard: #e0b000;        /* "under construction" stripes */
+
+    --font-serif: "Times New Roman", Times, "Liberation Serif", "DejaVu Serif", serif;
+    --font-blackletter: "Old English Text MT", "UnifrakturMaguntia", "UnifrakturCook", "Luminari",
+                        "Blackadder ITC", "Goudy Text MT", "Times New Roman", Times, "Liberation Serif", serif;
+    --font-mono: "Courier New", Courier, "Liberation Mono", "DejaVu Sans Mono", monospace;
+    --font-art: "DejaVu Sans Mono", Consolas, "Courier New", monospace; /* block glyphs must line up */
+    --font-badge: Verdana, "DejaVu Sans", sans-serif;
+
+    --step--1: 0.9375rem;
+    --step-0: 1.125rem;
+    --step-1: 1.375rem;
+    --step-2: clamp(1.5rem, 1.25rem + 1.1vw, 2rem);
+    --step-3: clamp(2.1rem, 1.5rem + 2.6vw, 3.2rem);
+
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2.25rem;
+
+    --page-max: 54rem;
+    --tap: 2.75rem;           /* 44px touch target */
+}
+
+/* -------------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 body {
-    font-family: 'Times New Roman', Times, serif;
-    background-color: #f5f5dc;
-    color: #000;
-    text-align: center;
-    padding: 40px 20px;
-    line-height: 1.6;
+    margin: 0;
+    padding: var(--space-3) var(--space-2) var(--space-6);
+    background: var(--wall) url("images/stone.png");
+    color: var(--ink);
+    font: 400 var(--step-0) / 1.55 var(--font-serif);
+    overflow-wrap: break-word;
 }
 
-.container {
-    background-color: #fff;
-    border: 3px solid #000;
-    padding: 30px;
-    max-width: 600px;
-    margin: 0 auto;
-    box-shadow: 5px 5px 0px #333;
+img {
+    display: block;
+    max-width: 100%;
+    height: auto;
 }
 
-.container.tutorial {
-    max-width: 900px;
-    text-align: left;
+a {
+    color: var(--lapis);
 }
 
-h1 {
-    color: #000;
-    font-size: 2em;
-    margin-bottom: 20px;
-    text-decoration: underline;
-    text-align: center;
+a:visited {
+    color: var(--lapis-visited);
 }
 
-h2 {
-    color: #000;
-    font-size: 1.5em;
-    margin: 30px 0 15px 0;
-    text-decoration: underline;
+a:hover {
+    color: var(--rubric);
 }
 
-h3 {
-    color: #000;
-    font-size: 1.3em;
-    margin: 25px 0 15px 0;
-    text-decoration: underline;
-}
-
-p {
-    color: #000;
-    font-size: 1em;
-    margin: 15px 0;
-}
-
-hr {
-    border: none;
-    border-top: 2px solid #000;
-    margin: 25px 0;
-}
-
-ul, ol {
-    text-align: left;
-    max-width: 400px;
-    margin: 15px auto;
-    list-style-type: disc;
-}
-
-.container.tutorial ul,
-.container.tutorial ol {
-    max-width: 800px;
-}
-
-li {
-    color: #000;
-    font-size: 1em;
-    margin: 8px 0;
-    padding-left: 5px;
-}
-
-.note {
-    background-color: #fff;
-    border: 2px solid #000;
-    padding: 15px;
-    margin: 20px 0;
+:focus-visible {
+    outline: 3px dashed var(--rubric);
+    outline-offset: 2px;
 }
 
 code {
-    font-family: 'Courier New', monospace;
-    background-color: #f0f0f0;
-    padding: 2px 4px;
-    color: #000;
-    border: 1px solid #ccc;
+    padding: 0 0.2em;
+    background: rgba(184, 134, 11, 0.14);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
 }
 
-pre {
-    background-color: #f0f0f0;
-    color: #000;
-    padding: 15px;
-    border: 2px solid #000;
-    overflow-x: auto;
-    font-size: 0.9em;
-    text-align: left;
+p,
+ul,
+ol {
+    margin: 0 0 var(--space-4);
 }
 
-pre code {
-    background-color: transparent;
-    color: inherit;
-    padding: 0;
-    border: none;
+.skip-link {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 10;
+    padding: var(--space-2) var(--space-4);
+    background: var(--parchment);
+    color: var(--ink);
+    transform: translateY(-200%);
 }
 
-.diagram {
-    background-color: #fff;
-    border: 2px solid #000;
-    padding: 20px;
+.skip-link:focus {
+    transform: none;
+}
+
+/* ------------------------------------------------------------------- frame */
+
+/* The parchment page, framed in stone like a 1996 table with border="8". */
+.page {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-4) clamp(var(--space-3), 3vw, var(--space-6)) var(--space-5);
+    background: var(--parchment) url("images/parchment.png");
+    border: 8px ridge var(--stone);
+    box-shadow: 0 0 0 2px var(--night), 6px 8px 0 rgba(0, 0, 0, 0.45);
+}
+
+.banner {
     text-align: center;
-    margin: 20px 0;
-    font-family: monospace;
+}
+
+.banner a {
+    display: inline-block;
+    color: var(--rubric);
+    text-decoration: none;
+}
+
+/* ASCII and block-character art scales with the screen so it never overflows. */
+.art {
+    margin: 0;
+    font: 400 min(1.5rem, 2.85vw) / 1 var(--font-art);
     white-space: pre;
 }
 
-.step {
-    display: flex;
-    align-items: baseline;
-    margin-bottom: 10px;
+.art--castle {
+    margin: var(--space-4) auto;
+    width: max-content;
+    color: var(--faded);
+    font-size: min(1.05rem, 3.3vw);
+    line-height: 1;
 }
 
-.step-number {
-    background-color: #000;
-    color: #fff;
-    width: 25px;
-    height: 25px;
+.motto {
+    margin: var(--space-2) 0 var(--space-4);
+    color: var(--faded);
+    font-style: italic;
+}
+
+/* A sword drawn in ASCII, used as a divider. */
+.sword {
+    margin: var(--space-5) 0;
+    color: var(--faded);
+    font: 400 min(1rem, 3.1vw) / 1 var(--font-mono);
     text-align: center;
-    line-height: 25px;
-    margin-right: 10px;
-    flex-shrink: 0;
-    border: 1px solid #000;
+    white-space: pre;
 }
 
-.internals {
-    background-color: #fff;
-    border: 2px solid #000;
-    padding: 15px;
-    margin: 20px 0;
+/* minmax(0, 1fr) lets wide scrolls and tables scroll inside the column
+   instead of stretching the whole page on a phone. */
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
 }
 
-.internals h3 {
-    color: #000;
-    margin-top: 0;
+@media (min-width: 46rem) {
+    .layout {
+        grid-template-columns: 12rem minmax(0, 1fr);
+        align-items: start;
+    }
 }
 
+/* -------------------------------------------------------- map (side nav) */
 
-/* Random Image */
-#random-image {
+.map {
+    padding: var(--space-3);
+    background: var(--vellum);
+    border: 4px ridge var(--stone);
+}
+
+.map__title {
+    margin: 0 0 var(--space-1);
+    color: var(--rubric);
+    font: 400 var(--step-1) / 1.1 var(--font-blackletter);
+    text-align: center;
+}
+
+.map ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+    column-gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.map a {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    min-height: var(--tap);
+    font-size: var(--step--1);
+    line-height: 1.2;
+}
+
+.map a::before {
+    content: "✠";
+    content: "✠" / "";
+    color: var(--gold);
+    font-size: 0.85em;
+}
+
+.map a[aria-current="page"] {
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.map a[aria-current="page"]::before {
+    content: "☞";
+    content: "☞" / "";
+    color: var(--rubric);
+    font-size: 1.1em;
+}
+
+/* --------------------------------------------------------------- headings */
+
+h1 {
+    margin: 0 0 var(--space-4);
+    color: var(--rubric);
+    font: 400 var(--step-3) / 1.05 var(--font-blackletter);
+}
+
+.numeral {
+    display: block;
+    margin-bottom: var(--space-2);
+    color: var(--faded);
+    font: 700 var(--step--1) / 1.3 var(--font-serif);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+h2 {
+    margin: var(--space-6) 0 var(--space-3);
+    color: var(--rubric);
+    font: 400 var(--step-2) / 1.15 var(--font-blackletter);
+}
+
+h2::before {
+    content: "⚜ ";
+    content: "⚜ " / "";
+    color: var(--gold);
+}
+
+h3 {
+    margin: var(--space-5) 0 var(--space-2);
+    font: 700 var(--step-1) / 1.25 var(--font-serif);
+}
+
+/* Illuminated initial: the first letter of a chamber, boxed in gold. */
+.lead::first-letter {
+    float: left;
+    margin: 0.06em 0.14em 0 0;
+    padding: 0.08em 0.14em 0;
+    background: var(--vellum);
+    border: 3px double var(--gold);
+    color: var(--rubric);
+    font: 400 3.4em / 0.85 var(--font-blackletter);
+}
+
+/* ----------------------------------------- signature: scroll and wax seal */
+
+/* An HTTP message, written on a scroll with wooden ends. */
+.scroll {
+    margin: var(--space-3) 0 var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: var(--vellum);
+    border-block: 10px solid var(--roller);
+    border-inline: 1px solid var(--roller);
+    border-radius: 10px / 6px;
+    box-shadow: inset 0 8px 8px -8px rgba(42, 27, 14, 0.5), inset 0 -8px 8px -8px rgba(42, 27, 14, 0.5);
+    font: 400 var(--step--1) / 1.5 var(--font-mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* Diagrams whose columns must line up scroll sideways instead of wrapping. */
+.scroll--fixed {
+    white-space: pre;
+    overflow-x: auto;
+    overflow-wrap: normal;
+}
+
+.scroll__caption {
+    margin: var(--space-4) 0 0;
+    color: var(--faded);
+    font: italic var(--step--1) / 1.3 var(--font-serif);
+}
+
+.scroll__caption + .scroll {
+    margin-top: var(--space-1);
+}
+
+.verdict {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+}
+
+.verdict .scroll {
+    margin: 0;
+}
+
+/* The status code, pressed into wax. */
+.seal {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    width: 4.5rem;
+    aspect-ratio: 1;
+    margin-top: var(--space-2);
+    padding: 0.3rem;
+    background: radial-gradient(circle at 35% 30%, #c0392b 0, var(--wax) 48%, #5c0d0d 100%);
+    border-radius: 48% 52% 50% 46% / 50% 46% 54% 50%;
+    box-shadow: 0 0 0 4px rgba(142, 21, 21, 0.3), 2px 3px 0 rgba(0, 0, 0, 0.3);
+    color: var(--wax-text);
+    font: 700 1.3rem / 1 var(--font-serif);
+    text-align: center;
+    transform: rotate(-8deg);
+}
+
+.seal small {
+    display: block;
+    margin-top: 0.2em;
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.seal--error {
+    background: radial-gradient(circle at 35% 30%, #6b6b6b 0, var(--wax-black) 50%, #0d0d0d 100%);
+    box-shadow: 0 0 0 4px rgba(43, 43, 43, 0.3), 2px 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+.seal--waiting {
+    background: none;
+    border: 2px dashed var(--stone);
+    box-shadow: none;
+    color: var(--faded);
+    font-size: 0.75rem;
+    transform: none;
+}
+
+.seals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+    margin: var(--space-4) 0;
+}
+
+.seals figure {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--step--1);
+    text-align: center;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+/* A 1996 button: grey, bevelled, pressed in when clicked. */
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tap);
+    padding: 0 var(--space-4);
+    background: var(--stone-light);
+    border: 3px outset var(--stone-light);
+    color: var(--ink);
+    font: 700 var(--step--1) / 1.15 var(--font-serif);
+    text-align: center;
+    cursor: pointer;
+}
+
+.button:active {
+    border-style: inset;
+}
+
+.button:disabled {
+    color: var(--faded);
+    cursor: progress;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: var(--space-3) 0;
+}
+
+.field {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-3) 0;
+}
+
+.field label {
+    font-weight: 700;
+}
+
+.field input {
+    width: 100%;
+    min-height: var(--tap);
+    padding: 0 var(--space-2);
+    background: #fffaf0;
+    border: 3px inset var(--stone-light);
+    color: var(--ink);
+    font: 400 var(--step-0) / 1.2 var(--font-mono);
+}
+
+/* ------------------------------------------------------------------ tables */
+
+.table-wrap {
+    margin: var(--space-3) 0 var(--space-4);
+    overflow-x: auto;
+}
+
+/* Like <table border="1">: a ridged frame and inset cells. */
+.ledger {
+    width: 100%;
+    border: 4px ridge var(--stone);
+    border-spacing: 2px;
+    background: var(--parchment);
+    font-size: var(--step--1);
+}
+
+.ledger caption {
+    padding-bottom: var(--space-1);
+    color: var(--faded);
+    font-style: italic;
+    text-align: left;
+}
+
+.ledger th,
+.ledger td {
+    padding: var(--space-2);
+    border: 1px inset var(--stone);
+    text-align: left;
+    vertical-align: top;
+}
+
+.ledger thead th {
+    background: var(--vellum);
+}
+
+.ledger td.result {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    white-space: nowrap;
+}
+
+.ok {
+    color: var(--verdant);
+    font-weight: 700;
+}
+
+.not-found {
+    color: var(--rubric);
+    font-weight: 700;
+}
+
+/* ---------------------------------------------------- 1990s home page bits */
+
+/* Scrolling news, like <marquee>. Still text under reduced motion. */
+.marquee {
+    margin: var(--space-4) 0;
+    overflow: hidden;
+    background: var(--night);
+    border: 3px inset var(--stone);
+    color: var(--led);
+    font: 700 var(--step--1) / 1.5 var(--font-mono);
+}
+
+.marquee p {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .marquee p {
+        display: inline-block;
+        padding-left: 100%;
+        white-space: nowrap;
+        animation: marquee 32s linear infinite;
+    }
+
+    .marquee:hover p {
+        animation-play-state: paused;
+    }
+}
+
+@keyframes marquee {
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+.construction {
+    margin: var(--space-5) 0;
+    padding: var(--space-2) var(--space-4) var(--space-1);
+    background: var(--vellum);
+    border: 8px solid;
+    border-image: repeating-linear-gradient(-45deg, var(--hazard) 0 10px, var(--night) 10px 20px) 8;
+}
+
+.construction h2 {
+    margin-top: var(--space-2);
+}
+
+.counter {
+    margin: var(--space-5) 0;
+    font-size: var(--step--1);
+    text-align: center;
+}
+
+.counter__digits {
+    display: inline-flex;
+    gap: 2px;
+    margin: 0 0.3em;
+    padding: 3px;
+    background: #000;
+    border: 2px inset var(--stone);
+    vertical-align: middle;
+}
+
+.counter__digits span {
+    padding: 0 0.25em;
+    background: var(--night);
+    color: var(--led);
+    font: 700 1.1rem / 1.4 var(--font-mono);
+}
+
+/* "Webring" box to walk from one chamber to the next. */
+.ring {
+    margin-top: var(--space-6);
+    padding: var(--space-3);
+    background: var(--vellum);
+    border: 4px ridge var(--stone);
+    font-size: var(--step--1);
+    text-align: center;
+}
+
+.ring__title {
+    margin: 0;
+    color: var(--rubric);
+    font: 400 var(--step-1) / 1.2 var(--font-blackletter);
+}
+
+.ring ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ring a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+}
+
+/* Where the code for this feature lives. */
+.forge {
+    margin: var(--space-5) 0 0;
+    padding: var(--space-3) var(--space-4);
+    border: 2px dashed var(--stone);
+    font-size: var(--step--1);
+}
+
+.forge strong {
+    color: var(--rubric);
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+}
+
+/* Notes in the margin of the manuscript (used in the Library). */
+.marginalia {
+    margin: var(--space-4) 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--vellum);
+    border-left: 6px double var(--rubric);
+}
+
+.marginalia > :last-child {
+    margin-bottom: 0;
+}
+
+.portrait {
+    margin: var(--space-4) auto;
+    width: fit-content;
+    padding: var(--space-2);
+    background: var(--night);
+    border: 6px double var(--gold);
+}
+
+.portrait img {
+    max-height: min(80vh, 40rem);
     width: auto;
-    height: 480px;
-    image-rendering: -webkit-optimize-contrast;
+}
+
+.portrait figcaption {
+    padding-top: var(--space-2);
+    color: var(--led);
+    font-size: var(--step--1);
+    font-style: italic;
+    text-align: center;
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.colophon {
+    color: var(--faded);
+    font-size: var(--step--1);
+    text-align: center;
+}
+
+.colophon p {
+    margin-bottom: var(--space-2);
+}
+
+/* 88 × 31 buttons, the badges of every 1990s footer. */
+.badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+    padding: 0;
+    list-style: none;
+}
+
+.badge {
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 31px;
+    padding: 0 2px;
+    border: 2px outset var(--stone-light);
+    font: 700 10px / 1.05 var(--font-badge);
+    letter-spacing: 0.02em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.badge--c {
+    background: var(--night);
+    color: var(--led);
+}
+
+.badge--candle {
+    background: var(--wax);
+    color: var(--wax-text);
+}
+
+.badge--quill {
+    background: var(--lapis);
+    color: #ffffff;
 }

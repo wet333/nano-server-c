@@ -1,0 +1,19 @@
+{
+    "name": "Nano Server C",
+    "server_header": "AWetServerV1.0",
+    "language": "C",
+    "dependencies": ["C standard library", "POSIX sockets"],
+    "port": 8080,
+    "buffer_size_bytes": 4096,
+    "concurrency": "one client at a time",
+    "connection": "closed after every response",
+    "status_codes_sent": [200, 404],
+    "mime_types": {
+        ".html": "text/html; charset=UTF-8",
+        ".htm": "text/html; charset=UTF-8",
+        ".css": "text/css; charset=UTF-8",
+        ".json": "application/json",
+        ".png": "image/png",
+        "anything else": "text/plain; charset=UTF-8"
+    }
+}

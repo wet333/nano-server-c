@@ -56,7 +56,7 @@ int get_response_size(HttpResponse *res, char *buffer, size_t buffer_size) {
         "HTTP/1.1 %d %s\r\n", res->status, get_status_phrase(res->status));
 
     // Standard Headers
-    response_size = snprintf(buffer + response_size, buffer_size - response_size,
+    response_size += snprintf(buffer + response_size, buffer_size - response_size,
         "Content-Type: %s\r\n"
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
